@@ -6,10 +6,17 @@
     <script src="js/phaser.js"></script>
     <style type="text/css">
         body {
-            margin: 0;
+            top: 0px;
+            left: 0px;
+        }
+        .controls {
+        	position: absolute;
+        	top: 600px;
+        	left: 50px;
         }
     </style>
 </head>
+
 <body>
 
 <script type="text/javascript">
@@ -495,7 +502,7 @@ function updateLaserBots() {
 
 		    //set collision with enemies
     		if(game.physics.arcade.intersects(player, laserBots.getAt(i).body) && laserBots.getAt(i).firing) {
-    			//make a function that deals damage to player, makese player invincible for a few seconds
+    			//deals damage to player, makes player invincible for a few seconds
     			damagePlayer();
    		    }
     	}
@@ -631,4 +638,20 @@ function render() {
 </script>
 
 </body>
+
+<span class="controls">
+	<p>
+		Controls:
+	</p>
+	<p>
+		Move - Arrow Keys
+	</p>
+	<p>
+		Jump - Space Bar
+	</p>
+	<p>
+		Shoot - Z
+	</p>
+</span>
+
 </html>
