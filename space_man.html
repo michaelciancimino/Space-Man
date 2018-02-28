@@ -1,0 +1,574 @@
+<!doctype html> 
+<html lang="en"> 
+<head> 
+	<meta charset="UTF-8" />
+    <title>Space Man Game</title>
+    <script src="js/phaser.js"></script>
+    <style type="text/css">
+        body {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+
+<script type="text/javascript">
+
+var game = new Phaser.Game(800, 600, Phaser.AUTO, 'game', { preload: preload, create: create, update: update, render: render });
+
+function preload() {
+
+    game.load.image('background', 'assets/gameBackground.png');
+    game.load.image('ground', 'assets/platform.png');
+    game.load.image('brickPlatform', 'assets/brickPlatform.png');
+    game.load.image('smallPlatform', 'assets/smallPlatform.png');
+    game.load.image('portal', 'assets/portal.png');
+    game.load.image('homePortal', 'assets/homePortal.png');
+    game.load.image('star', 'assets/star.png');
+    game.load.image('window', 'assets/backgroundWindow.png');
+    game.load.spritesheet('dude', 'assets/dude.png', 32, 48);
+    game.load.spritesheet('spaceman', 'assets/spacemanEightFrames.png', 48, 48);
+    game.load.image('laser', 'assets/playerLaser.png');
+    game.load.spritesheet('laserBots', 'assets/laserBotSheet.png', 152, 24);
+    game.load.image('magnetLauncher', 'assets/magnetLauncher.png');
+    game.load.image('magnet', 'assets/magnet.png');
+
+}
+
+var platforms;
+var player;
+var cursors;
+
+var maxHealth;
+var health;
+var maxArmor;
+var armor;
+var playerInfo;
+var invuln;
+var invulnTime;
+var score;
+
+var jumpButton;
+var fireButton;
+
+var laserBots;
+
+var bulletTime = 0;
+var bullet;
+var bullets;
+var aim;
+var lastAim;
+
+function create() {
+
+	//background
+	game.add.sprite(0, 0, 'background');
+
+	//window in background
+	game.add.sprite(300, 400, 'window');
+
+	/*bot test
+	game.add.sprite(600, 1064, 'laserBotLeft');
+	game.add.sprite(728, 1064, 'laserBotRight');
+	game.add.sprite(624, 1072, 'laser');
+	*/
+
+
+	//spawning portals
+	game.add.sprite(600, 78, 'portal');
+	game.add.sprite(0, 228, 'portal');
+	game.add.sprite(1152, 228, 'portal');
+	game.add.sprite(600, 378, 'portal');
+	game.add.sprite(0, 528, 'portal');
+	game.add.sprite(0, 928, 'portal');
+	game.add.sprite(1152, 928, 'portal');
+	game.add.sprite(575, 928, 'portal');
+	game.add.sprite(0, 1064, 'portal');
+	game.add.sprite(0, 1064, 'portal');
+
+	//home portal
+	game.add.sprite(575, 678, 'homePortal');
+
+	//set the size of the world
+	game.world.setBounds(0, 0, 1200, 1200);
+
+	//creates new player at 100,200, uses spritesheet dude
+    player = game.add.sprite(100, 200, 'spaceman');
+
+    //enable physics for player
+    game.physics.arcade.enable(player);
+
+    //turn on collision and gravity for player
+    player.body.collideWorldBounds = true;
+    player.body.gravity.y = 500;
+
+    //  Our two animations, walking left and right.
+    player.animations.add('right', [0, 1, 2, 3], 10, true);
+    player.animations.add('left', [4, 5, 6, 7], 10, true);
+
+    //camera to follow player
+    game.camera.follow(player);
+
+    //set starting health and armor
+    maxHealth = 3;
+    maxArmor = 1;
+    health = maxHealth;
+    armor = maxArmor;
+    invuln = false;
+
+    //starting score
+    score = 0;
+
+    //create group for platforms
+    platforms = game.add.physicsGroup();
+
+    //create platforms
+    platforms.create(400, 150, 'brickPlatform');
+    platforms.create(-200, 300, 'brickPlatform');
+    platforms.create(800, 300, 'brickPlatform');
+    platforms.create(400, 450, 'brickPlatform');
+    platforms.create(-100, 600, 'brickPlatform');
+    platforms.create(1000, 600, 'smallPlatform');
+    platforms.create(400, 750, 'brickPlatform');
+    platforms.create(300, 900, 'smallPlatform');
+    platforms.create(800, 900, 'smallPlatform');
+    platforms.create(550, 1000, 'smallPlatform');
+    platforms.create(-200, 1000, 'brickPlatform');
+    platforms.create(900, 1000, 'brickPlatform');
+
+    // Here we create the ground.
+    var ground = platforms.create(0, game.world.height - 64, 'brickPlatform');
+
+    //  Scale it to fit the width of the game (the original sprite is 400x32 in size)
+    ground.scale.setTo(4, 2);
+
+    //  This stops it from falling away when you jump on it
+    ground.body.immovable = true;
+
+    //make all platforms immovable
+    platforms.setAll('body.immovable', true);
+
+    //bullets
+    bullets = game.add.physicsGroup();
+    bullets.createMultiple(32, 'laser', false);
+    bullets.setAll('checkWorldBounds', true);
+    bullets.setAll('outOfBoundsKill', true);
+
+    //laser bots
+    laserBots = game.add.group();
+    laserBots.enableBody = true;
+    laserBots.physicsBodyType = Phaser.Physics.ARCADE;
+    laserBots.collideWorldBounds = true;
+
+    //spawn the laser bots
+    createLaserBots();
+
+    //magnet launchers
+    magnetLaunchers = game.add.group();
+    magnetLaunchers.enableBody = true;
+    magnetLaunchers.physicsBodyType = Phaser.Physics.ARCADE;
+    magnetLaunchers.collideWorldBounds = true;
+
+    //magnets
+    magnets = game.add.group();
+    magnets.enableBody = true;
+    magnets.physicsBodyType = Phaser.Physics.ARCADE;
+    magnets.collideWorldBounds = true;
+
+    //spawn magnet launchers
+    createMagnetLauncher();
+
+
+    cursors = game.input.keyboard.createCursorKeys();
+    jumpButton = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
+    fireButton = game.input.keyboard.addKey(Phaser.Keyboard.Z);
+
+    playerInfo = game.add.text(16, 16, 'Health: 3	Armor: 1', { fontSize: '32px', fill: '#339'});
+}
+
+function createLaserBots() {
+	//location they are created at, sprite and frame of spritesheet
+	var bot = laserBots.create(0, 0, 'laserBots', 0);
+
+	
+	//set to true if charging or firing
+	var charging = false;
+	var firing = false;
+
+	//time that charge or fire started
+	var startCharge;
+	var startFire;
+
+	//health of bots
+	var health = 3;
+
+	//last time enemy was hit
+	var lastHit = 0;
+
+	//increase the size if firing laser
+	//bot.body.setSize(0, 0);
+	game.physics.arcade.collide(player, bot);
+	bot.body.immovable = true;
+	
+}
+
+function createMagnetLauncher() {
+	//location of spawn and sprite
+	var launcher = magnetLaunchers.create(0, game.world.height - 124, 'magnetLauncher');
+
+	//rate of fire
+	var fired = false;
+	var fireTime;
+
+	//health
+	var health = 10;
+
+	//last time enemy was hit
+	var lastHit = 0;
+
+	launcher.body.setSize(32, 60);
+	game.physics.arcade.collide(player, launcher);
+	launcher.body.immovable = true;
+}
+
+function createMagnet(i) {
+
+	var deadChild = magnets.getFirstDead();
+
+	if(deadChild != null) {
+		var magnet = deadChild;
+
+		magnet.reset(magnetLaunchers.getAt(i).x, magnetLaunchers.getAt(i).y);
+
+		magnet.health = 1;
+		magnet.lastHit = 0;
+
+		magnet.alive = 1;
+
+	}
+	else {
+		//location of spawn and sprite
+		var magnet = magnets.create(magnetLaunchers.getAt(i).x, magnetLaunchers.getAt(i).y, 'magnet');
+
+		//health
+		magnet.health = 1;
+
+		//last time enemy was hit
+		magnet.lastHit = 0;
+
+		magnet.body.setSize(18, 18);
+		game.physics.arcade.collide(player, magnet);
+		magnet.body.immovable = true;
+	}
+}
+
+
+function update() {
+   
+   	//set collision for the player with platforms
+    game.physics.arcade.collide(player, platforms);
+
+
+
+    player.body.velocity.x = 0;
+
+    //right and left movement
+    if(cursors.left.isDown) {
+    	//move left
+    	player.body.velocity.x = -250;
+
+    	player.animations.play('left');
+
+    	aim = 'left';
+    	lastAim = aim;
+    }
+    else if (cursors.right.isDown) {
+    	//move right
+    	player.body.velocity.x = 250;
+
+    	player.animations.play('right');
+
+    	aim = 'right';
+    	lastAim = aim;
+    }
+    else {
+    	//stand still
+    	player.animations.stop();
+    	if(lastAim == 'right') {
+    		player.frame = 0;
+    	}
+    	else {
+    		player.frame = 4;
+    	}
+
+    	if(cursors.up.isDown) {
+    		if(aim == 'right' || aim == 'left') {
+    			lastAim = aim;
+    		}
+    		aim = 'up';
+    	}
+    	else if(cursors.down.isDown) {
+    		if(aim == 'right' || aim == 'left') {
+    			lastAim = aim;
+    		}
+    		aim = 'down';
+    	}
+    	else {
+    		aim = lastAim;
+    	}
+    }
+
+    //jump
+    if(jumpButton.isDown && (player.body.onFloor() || player.body.touching.down)) {
+    	player.body.velocity.y = -400;
+    }
+
+    //shoot
+    if(fireButton.isDown) {
+    	fireBullet();
+    }
+
+    //invincibility after being hit
+    if(invuln) {
+    	if(this.game.time.totalElapsedSeconds() > invulnTime + 2) {
+    		invuln = false;
+    	}
+    }
+
+    //move laser bots
+    updateLaserBots();
+
+    //update the magnet launchers
+    updateMagnetLaunchers();
+
+    //update the magnets
+    updateMagnets();
+
+    //bullet collision
+    updateBullets();
+
+    //update health and armor info
+    playerInfo.text = 'Health: ' + health + '	Armor: ' + armor + 
+    	'\nScore: ' + score;
+    playerInfo.x = game.camera.x;
+    playerInfo.y = game.camera.y;
+
+}
+
+function fireBullet() {
+	
+	if(game.time.time > bulletTime) {
+		bullet = bullets.getFirstExists(false);
+
+		if(bullet) {
+
+			//bullet speed
+			bulletTime = game.time.time + 300;
+			if(lastAim == 'right') {
+				bullet.reset(player.x + 48, player.y + 26);
+				bullet.body.velocity.x = 600;
+			}
+			else {
+				bullet.reset(player.x - 10, player.y + 28);
+				bullet.body.velocity.x = -600;
+			}
+			
+		}
+	}
+
+}
+
+function updateBullets() {
+	for(var i = 0; i < bullets.total; i++) {
+
+		for(var j = 0; j < laserBots.total; j++) {
+			if(game.physics.arcade.intersects(bullets.getAt(i).body, laserBots.getAt(j).body)) {
+    			bullets.getAt(i).kill();
+    			laserBots.getAt(j).health--;
+    			laserBots.getAt(j).lastHit = this.game.time.totalElapsedSeconds();
+   			 }
+		}
+
+		for(var j = 0; j < magnetLaunchers.total; j++) {
+			if(game.physics.arcade.intersects(bullets.getAt(i).body, magnetLaunchers.getAt(j).body)) {
+    		   	bullets.getAt(i).kill();
+    			//damage magnet launcer that was hit
+    			magnetLaunchers.getAt(j).health--;
+   			 }
+		}
+
+		for(var j = 0; j < magnets.total; j++) {
+			if(game.physics.arcade.intersects(bullets.getAt(i).body, magnets.getAt(j).body)) {
+        			bullets.getAt(i).kill();
+    			//damage magnet that was hit
+    			magnets.getAt(j).health--;
+   			 }
+		}
+
+	}
+}
+
+function updateLaserBots() {
+	moveLaserBots();
+	for (var i = 0; i < laserBots.total; i++) {
+		
+		//destroy bot if no health
+		if(laserBots.getAt(i).health <= 0) {
+			score += 2;
+			laserBots.getAt(i).kill();
+		}
+
+		//update living bots
+		else {
+			if(laserBots.getAt(i).charging) {
+				laserBots.getAt(i).frame = 1;
+				if(this.game.time.totalElapsedSeconds() > laserBots.getAt(i).startCharge + .5) {
+					laserBots.getAt(i).charging = false;
+					laserBots.getAt(i).firing = true;
+					laserBots.getAt(i).startFire = this.game.time.totalElapsedSeconds();
+					//increase body size so it can collide with player
+					//laserBots.getAt(i).body.setSize(152, 24);
+				}
+			}
+
+			else if(laserBots.getAt(i).firing) {
+				laserBots.getAt(i).frame = 2;
+				if(this.game.time.totalElapsedSeconds() > laserBots.getAt(i).startFire + 1) {
+					laserBots.getAt(i).firing = false;
+					laserBots.getAt(i).frame = 0;
+					//laserBots.getAt(i).body.setSize(0, 0);
+				}
+			}
+
+		    //set collision with enemies
+    		if(game.physics.arcade.intersects(player, laserBots.getAt(i).body) && laserBots.getAt(i).firing) {
+    			//make a function that deals damage to player, makese player invincible for a few seconds
+    			damagePlayer();
+   		    }
+    	}
+
+	}
+}
+
+function moveLaserBots() {
+	for (var i = 0; i < laserBots.total; i++) {
+		if(laserBots.getAt(i).firing || laserBots.getAt(i).charging) {
+			laserBots.getAt(i).body.velocity.x = 0;
+			laserBots.getAt(i).body.velocity.y = 0;
+		}
+		else {
+			if(laserBots.getAt(i).x + 66 > player.x + 16) {
+				laserBots.getAt(i).body.velocity.x = -150;
+			}
+			else if(laserBots.getAt(i).x + 76 < player.x + 16){
+				laserBots.getAt(i).body.velocity.x = 150;
+			}
+			else {
+				laserBots.getAt(i).body.velocity.x = 0;
+			}
+			if(laserBots.getAt(i).y + 8 > player.y + 24) {
+				laserBots.getAt(i).body.velocity.y = -150;
+			}
+			else if(laserBots.getAt(i).y + 16 < player.y + 24){
+				laserBots.getAt(i).body.velocity.y = 150;
+			}
+			else {
+				laserBots.getAt(i).body.velocity.y = 0;
+			}
+			if(laserBots.getAt(i).body.velocity.y == 0 && laserBots.getAt(i).body.velocity.x == 0) {
+				laserBots.getAt(i).charging = true;
+				laserBots.getAt(i).startCharge = this.game.time.totalElapsedSeconds();
+			}
+		}
+	};
+	
+}
+
+function updateMagnetLaunchers() {
+	for (var i = 0; i < magnetLaunchers.total; i++) {
+		
+		//destory launchers when out of health
+		if(magnetLaunchers.getAt(i).health <= 0) {
+			score += 5;
+			magnetLaunchers.getAt(i).kill();
+		}
+
+		else {
+			if(!magnetLaunchers.getAt(i).fired) {
+				createMagnet(i);
+				magnetLaunchers.getAt(i).fireTime = this.game.time.totalElapsedSeconds();
+				magnetLaunchers.getAt(i).fired = true;
+			}
+			else {
+				if(this.game.time.totalElapsedSeconds() > magnetLaunchers.getAt(i).fireTime + 2) {
+					magnetLaunchers.getAt(i).fired = false;
+				}
+			}
+		}
+	};
+}
+
+function updateMagnets() {
+
+	var dead_enemies = [];
+	var num_dead_enemies = 0;
+
+	for (var i = 0; i < magnets.total; i++) {
+
+		if(!magnets.getAt(i).alive) {
+			continue;
+		}
+
+		//destory magnets when out of health
+		if(magnets.getAt(i).health <= 0) {
+			score += 1;
+			console.log("Magnet " + i + " of " + magnets.total + " killed");
+			//magnets.getAt(i).kill();
+			dead_enemies[num_dead_enemies] = i;
+			num_dead_enemies++;
+		}
+
+		else{
+			game.physics.arcade.moveToObject(magnets.getAt(i), player, 100);
+			if(game.physics.arcade.intersects(magnets.getAt(i), player)) {
+				damagePlayer();
+				magnets.getAt(i).kill();
+			}
+		}
+	};
+
+	//kill enemies
+	for(var i = num_dead_enemies - 1; i >= 0; i--) {
+		magnets.getAt(dead_enemies[i]).kill();
+	}
+}
+
+
+
+function damagePlayer() {
+	if(!invuln) {
+		if(armor > 0) {
+			armor--;
+		}
+		else {
+			health--;
+		}
+		player.body.velocity.y = -200;
+		invuln = true;
+		invulnTime = this.game.time.totalElapsedSeconds();
+	}
+}
+
+
+
+function render() {
+
+}
+
+
+
+
+</script>
+
+</body>
+</html>
