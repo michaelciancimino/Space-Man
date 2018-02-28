@@ -53,6 +53,12 @@ var jumpButton;
 var fireButton;
 
 var laserBots;
+var laserBotsSpawnTime = 20;
+var laserBotsLastSpawn = 10;
+
+var launcherSpawnTime = 30;
+var launcherLastSpawn = 10;
+
 var portals;
 
 var health_multiplier = 1;
@@ -90,8 +96,8 @@ function create() {
 	//set the size of the world
 	game.world.setBounds(0, 0, 1200, 1200);
 
-	//creates new player at 100,200, uses spritesheet dude
-    player = game.add.sprite(100, 200, 'spaceman');
+	//creates new player at 100,200
+    player = game.add.sprite(575, 660, 'spaceman');
 
     //enable physics for player
     game.physics.arcade.enable(player);
@@ -149,7 +155,7 @@ function create() {
 
     //bullets
     bullets = game.add.physicsGroup();
-    bullets.createMultiple(32, 'laser', false);
+    bullets.createMultiple(100, 'laser', false);
     bullets.setAll('checkWorldBounds', true);
     bullets.setAll('outOfBoundsKill', true);
 
@@ -160,7 +166,7 @@ function create() {
     laserBots.collideWorldBounds = true;
 
     //spawn the laser bots
-    createLaserBots();
+    //createLaserBots();
 
     //magnet launchers
     magnetLaunchers = game.add.group();
@@ -175,7 +181,7 @@ function create() {
     magnets.collideWorldBounds = true;
 
     //spawn magnet launchers
-    createMagnetLauncher();
+    //createMagnetLauncher();
 
 
     cursors = game.input.keyboard.createCursorKeys();
@@ -186,8 +192,23 @@ function create() {
 }
 
 function createLaserBots() {
-	//location they are created at, sprite and frame of spritesheet
-	var bot = laserBots.create(0, 0, 'laserBots', 0);
+
+	var bot = laserBots.getFirstDead();
+
+	var spawnPortal = Math.floor(Math.random() * (portals.total));
+
+	if(bot == null) {
+
+		//location they are created at, sprite and frame of spritesheet
+		bot = laserBots.create(portals.getAt(spawnPortal).x, portals.getAt(spawnPortal).y, 'laserBots', 0);
+
+		//increase the size if firing laser
+		game.physics.arcade.collide(player, bot);
+		bot.body.immovable = true;
+	}
+	else {
+		bot.reset(portals.getAt(spawnPortal).x, portals.getAt(spawnPortal).y);
+	}
 
 	//set to true if charging or firing
 	bot.charging = false;
@@ -198,61 +219,65 @@ function createLaserBots() {
 	bot.startFire;
 
 	//health of bots
-	bot.health = 3 * health_multiplier;
+	bot.health = 2 * health_multiplier;
 
 	//last time enemy was hit
 	bot.lastHit = 0;
-
-	//increase the size if firing laser
-	//bot.body.setSize(0, 0);
-	game.physics.arcade.collide(player, bot);
-	bot.body.immovable = true;
 	
 }
 
 function createMagnetLauncher() {
 
-	var deadChild = magnetLaunchers.getFirstDead();
+	var launcher = magnetLaunchers.getFirstDead();
 
-	if(deadChild != null) {
+	var spawnPortal = Math.floor(Math.random() * (portals.total));
 
+	if(launcher != null) {
+		launcher.fired = false;
+
+		//health
+		launcher.health = 5 * health_multiplier;
+
+		//last time enemy was hit
+		launcher.lastHit = 0;
+
+		launcher.reset(portals.getAt(spawnPortal).x, portals.getAt(spawnPortal).y + 12);
 	}
-	//location of spawn and sprite
-	var launcher = magnetLaunchers.create(0, game.world.height - 124, 'magnetLauncher');
+	else {
+		//location of spawn and sprite
+		launcher = magnetLaunchers.create(portals.getAt(spawnPortal).x, portals.getAt(spawnPortal).y + 12, 'magnetLauncher');
 
-	//rate of fire
-	launcher.fired = false;
-	launcher.fireTime;
+		//rate of fire
+		launcher.fired = false;
+		launcher.fireTime;
 
-	//health
-	launcher.health = 5 * health_multiplier;
+		//health
+		launcher.health = 5 * health_multiplier;
 
-	//last time enemy was hit
-	launcher.lastHit = 0;
+		//last time enemy was hit
+		launcher.lastHit = 0;
 
-	launcher.body.setSize(32, 60);
-	game.physics.arcade.collide(player, launcher);
-	launcher.body.immovable = true;
+		launcher.body.setSize(32, 60);
+		game.physics.arcade.collide(player, launcher);
+		launcher.body.immovable = true;
+	}
 }
 
 function createMagnet(i) {
 
-	var deadChild = magnets.getFirstDead();
+	var magnet = magnets.getFirstDead();
 
-	if(deadChild != null) {
-		var magnet = deadChild;
+	if(magnet != null) {
 
 		magnet.reset(magnetLaunchers.getAt(i).x, magnetLaunchers.getAt(i).y);
 
 		magnet.health = 1 * health_multiplier;
 		magnet.lastHit = 0;
 
-		magnet.alive = 1;
-
 	}
 	else {
 		//location of spawn and sprite
-		var magnet = magnets.create(magnetLaunchers.getAt(i).x, magnetLaunchers.getAt(i).y, 'magnet');
+		magnet = magnets.create(magnetLaunchers.getAt(i).x, magnetLaunchers.getAt(i).y, 'magnet');
 
 		//health
 		magnet.health = 1 * health_multiplier;
@@ -351,10 +376,33 @@ function update() {
     //update the magnets
     updateMagnets();
 
+    //spawn laser bots
+    if(this.game.time.totalElapsedSeconds() - laserBotsLastSpawn > laserBotsSpawnTime) {
+    	laserBotsLastSpawn = this.game.time.totalElapsedSeconds();
+    	createLaserBots();
+    }
+
+    //spawn launchers
+    if(this.game.time.totalElapsedSeconds() - launcherLastSpawn > launcherSpawnTime) {
+    	launcherLastSpawn = this.game.time.totalElapsedSeconds();
+    	createMagnetLauncher();
+    }
+
     //increased difficulty
     if(score - (score % 100) > oldScore) {
     	health++;
-    	health_multiplier += 0.5;
+    	health_multiplier += 0.25;
+    }
+
+    if(score - (score % 20) > oldScore) {
+
+    	if(laserBotsSpawnTime > 5) {
+    		laserBotsSpawnTime-= .5;
+    	}
+
+    	if(launcherSpawnTime > 5) {
+    		launcherSpawnTime-= .5;
+    	}
     }
 
     oldScore = score;
@@ -370,7 +418,7 @@ function update() {
 function fireBullet() {
 	
 	if(game.time.time > bulletTime) {
-		bullet = bullets.getFirstExists(false);
+		bullet = bullets.getFirstDead();
 
 		if(bullet) {
 
@@ -423,6 +471,10 @@ function updateBullets() {
 function updateLaserBots() {
 	moveLaserBots();
 	for (var i = 0; i < laserBots.total; i++) {
+
+		if(!laserBots.getAt(i).alive) {
+			continue;
+		}
 		
 		//destroy bot if no health
 		if(laserBots.getAt(i).health <= 0) {
@@ -498,6 +550,10 @@ function moveLaserBots() {
 
 function updateMagnetLaunchers() {
 	for (var i = 0; i < magnetLaunchers.total; i++) {
+
+		if(!magnetLaunchers.getAt(i).alive) {
+			continue;
+		}
 		
 		//destory launchers when out of health
 		if(magnetLaunchers.getAt(i).health <= 0) {
@@ -512,7 +568,7 @@ function updateMagnetLaunchers() {
 				magnetLaunchers.getAt(i).fired = true;
 			}
 			else {
-				if(this.game.time.totalElapsedSeconds() > magnetLaunchers.getAt(i).fireTime + 2) {
+				if(this.game.time.totalElapsedSeconds() > magnetLaunchers.getAt(i).fireTime + 5) {
 					magnetLaunchers.getAt(i).fired = false;
 				}
 			}
