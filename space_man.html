@@ -47,11 +47,15 @@ var playerInfo;
 var invuln;
 var invulnTime;
 var score;
+var oldScore;
 
 var jumpButton;
 var fireButton;
 
 var laserBots;
+var portals;
+
+var health_multiplier = 1;
 
 var bulletTime = 0;
 var bullet;
@@ -67,24 +71,18 @@ function create() {
 	//window in background
 	game.add.sprite(300, 400, 'window');
 
-	/*bot test
-	game.add.sprite(600, 1064, 'laserBotLeft');
-	game.add.sprite(728, 1064, 'laserBotRight');
-	game.add.sprite(624, 1072, 'laser');
-	*/
-
-
 	//spawning portals
-	game.add.sprite(600, 78, 'portal');
-	game.add.sprite(0, 228, 'portal');
-	game.add.sprite(1152, 228, 'portal');
-	game.add.sprite(600, 378, 'portal');
-	game.add.sprite(0, 528, 'portal');
-	game.add.sprite(0, 928, 'portal');
-	game.add.sprite(1152, 928, 'portal');
-	game.add.sprite(575, 928, 'portal');
-	game.add.sprite(0, 1064, 'portal');
-	game.add.sprite(0, 1064, 'portal');
+	portals = game.add.group();
+	portals.create(600, 78, 'portal');
+	portals.create(0, 228, 'portal');
+	portals.create(1152, 228, 'portal');
+	portals.create(600, 378, 'portal');
+	portals.create(0, 528, 'portal');
+	portals.create(0, 928, 'portal');
+	portals.create(1152, 928, 'portal');
+	portals.create(575, 928, 'portal');
+	portals.create(0, 1064, 'portal');
+	portals.create(0, 1064, 'portal');
 
 	//home portal
 	game.add.sprite(575, 678, 'homePortal');
@@ -118,6 +116,7 @@ function create() {
 
     //starting score
     score = 0;
+    oldScore = 0;
 
     //create group for platforms
     platforms = game.add.physicsGroup();
@@ -190,20 +189,19 @@ function createLaserBots() {
 	//location they are created at, sprite and frame of spritesheet
 	var bot = laserBots.create(0, 0, 'laserBots', 0);
 
-	
 	//set to true if charging or firing
-	var charging = false;
-	var firing = false;
+	bot.charging = false;
+	bot.firing = false;
 
 	//time that charge or fire started
-	var startCharge;
-	var startFire;
+	bot.startCharge;
+	bot.startFire;
 
 	//health of bots
-	var health = 3;
+	bot.health = 3 * health_multiplier;
 
 	//last time enemy was hit
-	var lastHit = 0;
+	bot.lastHit = 0;
 
 	//increase the size if firing laser
 	//bot.body.setSize(0, 0);
@@ -213,18 +211,24 @@ function createLaserBots() {
 }
 
 function createMagnetLauncher() {
+
+	var deadChild = magnetLaunchers.getFirstDead();
+
+	if(deadChild != null) {
+
+	}
 	//location of spawn and sprite
 	var launcher = magnetLaunchers.create(0, game.world.height - 124, 'magnetLauncher');
 
 	//rate of fire
-	var fired = false;
-	var fireTime;
+	launcher.fired = false;
+	launcher.fireTime;
 
 	//health
-	var health = 10;
+	launcher.health = 5 * health_multiplier;
 
 	//last time enemy was hit
-	var lastHit = 0;
+	launcher.lastHit = 0;
 
 	launcher.body.setSize(32, 60);
 	game.physics.arcade.collide(player, launcher);
@@ -240,7 +244,7 @@ function createMagnet(i) {
 
 		magnet.reset(magnetLaunchers.getAt(i).x, magnetLaunchers.getAt(i).y);
 
-		magnet.health = 1;
+		magnet.health = 1 * health_multiplier;
 		magnet.lastHit = 0;
 
 		magnet.alive = 1;
@@ -251,7 +255,7 @@ function createMagnet(i) {
 		var magnet = magnets.create(magnetLaunchers.getAt(i).x, magnetLaunchers.getAt(i).y, 'magnet');
 
 		//health
-		magnet.health = 1;
+		magnet.health = 1 * health_multiplier;
 
 		//last time enemy was hit
 		magnet.lastHit = 0;
@@ -335,6 +339,9 @@ function update() {
     	}
     }
 
+    //bullet collision
+    updateBullets();
+
     //move laser bots
     updateLaserBots();
 
@@ -344,8 +351,13 @@ function update() {
     //update the magnets
     updateMagnets();
 
-    //bullet collision
-    updateBullets();
+    //increased difficulty
+    if(score - (score % 100) > oldScore) {
+    	health++;
+    	health_multiplier += 0.5;
+    }
+
+    oldScore = score;
 
     //update health and armor info
     playerInfo.text = 'Health: ' + health + '	Armor: ' + armor + 
@@ -510,9 +522,6 @@ function updateMagnetLaunchers() {
 
 function updateMagnets() {
 
-	var dead_enemies = [];
-	var num_dead_enemies = 0;
-
 	for (var i = 0; i < magnets.total; i++) {
 
 		if(!magnets.getAt(i).alive) {
@@ -523,9 +532,7 @@ function updateMagnets() {
 		if(magnets.getAt(i).health <= 0) {
 			score += 1;
 			console.log("Magnet " + i + " of " + magnets.total + " killed");
-			//magnets.getAt(i).kill();
-			dead_enemies[num_dead_enemies] = i;
-			num_dead_enemies++;
+			magnets.getAt(i).kill();
 		}
 
 		else{
@@ -537,10 +544,6 @@ function updateMagnets() {
 		}
 	};
 
-	//kill enemies
-	for(var i = num_dead_enemies - 1; i >= 0; i--) {
-		magnets.getAt(dead_enemies[i]).kill();
-	}
 }
 
 
