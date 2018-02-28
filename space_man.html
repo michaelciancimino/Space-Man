@@ -52,10 +52,10 @@ var fireButton;
 
 var laserBots;
 var laserBotsSpawnTime = 20;
-var laserBotsLastSpawn = 10;
+var laserBotsLastSpawn = -10;
 
 var launcherSpawnTime = 30;
-var launcherLastSpawn = 10;
+var launcherLastSpawn = -10;
 
 var portals;
 
@@ -161,9 +161,6 @@ function create() {
     laserBots.physicsBodyType = Phaser.Physics.ARCADE;
     laserBots.collideWorldBounds = true;
 
-    //spawn the laser bots
-    //createLaserBots();
-
     //magnet launchers
     magnetLaunchers = game.add.group();
     magnetLaunchers.enableBody = true;
@@ -175,10 +172,6 @@ function create() {
     magnets.enableBody = true;
     magnets.physicsBodyType = Phaser.Physics.ARCADE;
     magnets.collideWorldBounds = true;
-
-    //spawn magnet launchers
-    //createMagnetLauncher();
-
 
     cursors = game.input.keyboard.createCursorKeys();
     jumpButton = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
@@ -372,16 +365,19 @@ function update() {
     //update the magnets
     updateMagnets();
 
-    //spawn laser bots
-    if(this.game.time.totalElapsedSeconds() - laserBotsLastSpawn > laserBotsSpawnTime) {
-    	laserBotsLastSpawn = this.game.time.totalElapsedSeconds();
-    	createLaserBots();
-    }
+    
+    if(health > 0) {
+    	//spawn laser bots
+    	if(this.game.time.totalElapsedSeconds() - laserBotsLastSpawn > laserBotsSpawnTime) {
+    		laserBotsLastSpawn = this.game.time.totalElapsedSeconds();
+    		createLaserBots();
+    	}
 
-    //spawn launchers
-    if(this.game.time.totalElapsedSeconds() - launcherLastSpawn > launcherSpawnTime) {
-    	launcherLastSpawn = this.game.time.totalElapsedSeconds();
-    	createMagnetLauncher();
+    	//spawn launchers
+    	if(this.game.time.totalElapsedSeconds() - launcherLastSpawn > launcherSpawnTime) {
+    		launcherLastSpawn = this.game.time.totalElapsedSeconds();
+    		createMagnetLauncher();
+    	}
     }
 
     //increased difficulty
@@ -556,7 +552,9 @@ function updateMagnetLaunchers() {
 
 		else {
 			if(!magnetLaunchers.getAt(i).fired) {
-				createMagnet(i);
+				if(health > 0) {
+					createMagnet(i);
+				}
 				magnetLaunchers.getAt(i).fireTime = this.game.time.totalElapsedSeconds();
 				magnetLaunchers.getAt(i).fired = true;
 			}
@@ -605,10 +603,23 @@ function damagePlayer() {
 		player.body.velocity.y = -200;
 		invuln = true;
 		invulnTime = this.game.time.totalElapsedSeconds();
+
+		if(health <= 0) {
+			player.kill();
+			gameOver();
+		}
 	}
 }
 
+function gameOver() {
 
+	playerInfo.kill();
+	var finalScore = score;
+	var gameOverText = game.add.text(0, 0, 'Game Over\n Score: ' + finalScore, { fontSize: '40px', fontWeight: 'bold', fill: 'white', align: 'center'});
+    gameOverText.fixedToCamera = true;
+    gameOverText.cameraOffset.setTo(300, 200);
+
+}
 
 function render() {
 
