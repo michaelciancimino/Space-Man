@@ -14,6 +14,16 @@
         	top: 600px;
         	left: 50px;
         }
+        #highscore {
+        	display: none;
+        	position: absolute;
+        	top: 350px;
+        	left: 200px;
+        	font-size: 40px;
+        	font-weight: bold;
+        	color: white;
+        	text-align:center;
+        }
     </style>
 </head>
 
@@ -626,6 +636,8 @@ function gameOver() {
     gameOverText.fixedToCamera = true;
     gameOverText.cameraOffset.setTo(300, 200);
 
+    document.getElementById("highscore").style.display = "block";
+
 }
 
 function render() {
@@ -652,6 +664,15 @@ function render() {
 	<p>
 		Shoot - Z
 	</p>
+</span>
+
+<span id="highscore">
+	<form>
+  		Enter name for high score:<br>
+  		<input type="text" name="name" value="" maxLength="20">
+  		<br><br>
+  		<input type="submit" value="Submit">
+	</form> 
 </span>
 
 </html>
